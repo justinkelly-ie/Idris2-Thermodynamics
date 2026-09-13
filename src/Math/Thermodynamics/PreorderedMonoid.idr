@@ -1,6 +1,6 @@
 module Math.Thermodynamics.PreorderedMonoid
 
-import public Core.Order.Preorder
+import Core.Order.Preorder
 import Core.BoxInt
 import Core.UnixelFraction
 import Core.Goh
