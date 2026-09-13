@@ -25,6 +25,10 @@ Eq ThermoState where
   (MkThermoState u1 t1 s1) == (MkThermoState u2 t2 s2) =
     u1 == u2 && t1 == t2 && s1 == s2
 
+public export
+Show ThermoState where
+  show (MkThermoState u t s) = "ThermoState(U=" ++ show u ++ ", T=" ++ show t ++ ", S=" ++ show s ++ ")"
+
 ||| Computes exact discrete Helmholtz Free Energy: F = U - T * S
 public export
 computeFreeEnergy : (1 state : ThermoState) -> BoxInt
