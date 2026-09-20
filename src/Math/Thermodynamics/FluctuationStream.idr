@@ -1,6 +1,7 @@
 module Math.Thermodynamics.FluctuationStream
 
 import public Core.BoxInt
+import public Core.Order.Preorder
 import public Math.OnSeq.FusedStream
 import public Math.Thermodynamics.EntropicArrow
 import Data.Fuel
@@ -59,14 +60,67 @@ fusedJarzynskiLinearBound f beta workList =
     (1, workList)
 
 --------------------------------------------------------------------------------
--- 2. VERIFICATION AUDIT WITNESS
+-- 2. DEFORESTED ENTROPY DISSIPATION STREAM TRANSDUCERS & LANDAUER AUDIT
 --------------------------------------------------------------------------------
 
-||| Audit witness verifying zero-allocation total work folding over thermodynamic fluctuation streams.
+||| Discrete entropy dissipation step recording erased bits and emitted heat in discrete units.
 public export
+record EntropyDissipationStep where
+  constructor MkDissipationStep
+  stepId      : Int
+  erasedBits  : Nat
+  emittedHeat : Nat
+
+public export
+Eq EntropyDissipationStep where
+  (MkDissipationStep id1 b1 h1) == (MkDissipationStep id2 b2 h2) =
+    id1 == id2 && b1 == b2 && h1 == h2
+
+||| O(1) allocation deforested stream transducer folding total emitted heat across entropy dissipation steps.
+public export covering
+fusedEntropyDissipationStream : Fuel -> List (Nat, Nat) -> Nat
+fusedEntropyDissipationStream f steps =
+  fusedHylomorphism f
+    (\(idx, st) => case st of
+                     [] => Done
+                     (b, h) :: rest => Yield (MkDissipationStep idx b h) (idx + 1, rest))
+    (\step, acc => emittedHeat step + acc)
+    0
+    (1, steps)
+
+||| O(1) allocation deforested stream transducer folding total erased bits across entropy dissipation steps.
+public export covering
+fusedComputeTotalErasedBits : Fuel -> List (Nat, Nat) -> Nat
+fusedComputeTotalErasedBits f steps =
+  fusedHylomorphism f
+    (\(idx, st) => case st of
+                     [] => Done
+                     (b, h) :: rest => Yield (MkDissipationStep idx b h) (idx + 1, rest))
+    (\step, acc => erasedBits step + acc)
+    0
+    (1, steps)
+
+||| Deforested stream transducer validating Landauer erasure bound across entropy dissipation streams.
+public export covering
+fusedValidateLandauerStream : Fuel -> List (Nat, Nat) -> Bool
+fusedValidateLandauerStream f steps =
+  let totalBits = fusedComputeTotalErasedBits f steps
+      totalHeat = fusedEntropyDissipationStream f steps
+  in natLTE (totalBits * 27) totalHeat
+
+--------------------------------------------------------------------------------
+-- 3. VERIFICATION AUDIT WITNESS
+--------------------------------------------------------------------------------
+
+||| Audit witness verifying zero-allocation total work and entropy dissipation stream folding.
+public export covering
 auditFluctuationStreamProof : Bool
 auditFluctuationStreamProof =
   let works = [intToBoxInt 2, intToBoxInt 3, intToBoxInt 5]
       totW = fusedTotalWork (limit 100) works
       jBound = fusedJarzynskiLinearBound (limit 100) (intToBoxInt 1) works
-  in unwrapBox totW == 10 && unwrapBox jBound == -7
+      dissSteps = [(1, 27), (2, 60), (3, 90)]
+      totHeat = fusedEntropyDissipationStream (limit 100) dissSteps
+      landauerValid = fusedValidateLandauerStream (limit 100) dissSteps
+  in unwrapBox totW == 10 && unwrapBox jBound == -7 && totHeat == 177 && landauerValid == True
+

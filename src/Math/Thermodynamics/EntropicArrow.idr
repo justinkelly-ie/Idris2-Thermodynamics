@@ -175,3 +175,32 @@ auditMultisetThermoFreeEnergyProof =
       f2 = multisetComputeFreeEnergy s2
   in unwrapBox f1 == 80 && unwrapBox f2 == 50 && unwrapBox f2 <= unwrapBox f1
 
+--------------------------------------------------------------------------------
+-- 7. COMPILE-TIME LANDAUER ERASED HEAT BOUND WITNESSES (Delta Q >= erasedBits * 27)
+--------------------------------------------------------------------------------
+
+||| Erased compile-time proof witness verifying Landauer heat erasure bound:
+||| Emitted heat Q (in discrete units) satisfies Q >= erasedBits * 27 (k_B T ln 2 scale factor).
+public export
+0 LandauerBoundWitness : (erasedBits : Nat) -> (emittedHeat : Nat) -> Type
+LandauerBoundWitness erasedBits emittedHeat = natLTE (erasedBits * 27) emittedHeat = True
+
+||| Static compile-time witness for 1 bit erasure emitting 27 heat units (27 <= 27).
+public export
+0 prfLandauer1Bit : LandauerBoundWitness 1 27
+prfLandauer1Bit = Refl
+
+||| Static compile-time witness for 10 bits erasure emitting 300 heat units (270 <= 300).
+public export
+0 prfLandauer10Bits : LandauerBoundWitness 10 300
+prfLandauer10Bits = Refl
+
+||| Verified Landauer information erasure transaction record carrying compile-time erased heat bound.
+public export
+record VerifiedLandauerErasureState (erasedBits : Nat) (emittedHeat : Nat) where
+  constructor MkVerifiedErasureState
+  erasedBitsCount : Nat
+  emittedHeatUnits : Nat
+  0 landauerPrf : LandauerBoundWitness erasedBits emittedHeat
+
+
