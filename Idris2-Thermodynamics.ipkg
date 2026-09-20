@@ -1,14 +1,13 @@
 package Idris2-Thermodynamics
-version = 0.1.0
+version = 0.3.1
 authors = "Justin Kelly"
 brief   = "Layer 8 Pre-ordered Monoids, Entropic Arrow & Free Energy Subsystem."
 
-depends = base
-        , Idris2-Geometry
-        , Idris2-Cellular
-        , Idris2-Fields
-
+depends = Idris2-Cellular, Idris2-Geometry, Idris2-Multiset-Core, Idris2-Multiset-Transform, base, linear
 sourcedir = "src"
 
-modules = Math.Thermodynamics.PreorderedMonoid
-        , Math.Thermodynamics.EntropicArrow
+modules = Math.Thermodynamics.EntropicArrow,
+          Math.Thermodynamics.FluctuationStream,
+          Math.Thermodynamics.PreorderedMonoid
+
+

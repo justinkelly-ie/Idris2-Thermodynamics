@@ -1,38 +1,50 @@
 module Math.Thermodynamics.EntropicArrow
 
-import Core.BoxInt
-import Core.UnixelFraction
-import Core.VexelMaxel
+import public Core.BoxInt
+import public Core.Multiset
+import public Math.Multiset
+import public Core.UnixelFraction
+
+import public Core.VexelMaxel
+import public Math.ChromoCategory
 import Math.Thermodynamics.PreorderedMonoid
 import Math.Cellular.Comonad
 
 %default total
 
 --------------------------------------------------------------------------------
--- 1. DISCRETE HELMHOLTZ FREE ENERGY & ENTROPY
+-- 1. DISCRETE HELMHOLTZ FREE ENERGY & ENTROPY ON MULTISET BASIS
 --------------------------------------------------------------------------------
 
-||| Discrete Thermodynamic State carrying internal energy U, temperature T, and entropy S
+||| Multiset basis vector encoding thermodynamic state carrying internal energy U (index 0),
+||| temperature T (index 1), and entropy S (index 2).
 public export
-record ThermoState where
-  constructor MkThermoState
-  internalEnergy : BoxInt
-  temperature    : BoxInt
-  entropyS       : BoxInt
+thermoVexel : BoxInt -> BoxInt -> BoxInt -> Vexel
+thermoVexel u t s = MkVexel [(MkUnixel 0, u), (MkUnixel 1, t), (MkUnixel 2, s)]
 
 public export
-Eq ThermoState where
-  (MkThermoState u1 t1 s1) == (MkThermoState u2 t2 s2) =
-    u1 == u2 && t1 == t2 && s1 == s2
+thermoInternalEnergy : Vexel -> BoxInt
+thermoInternalEnergy (MkVexel ((MkUnixel 0, u) :: _)) = u
+thermoInternalEnergy v = lookupUnixel (MkUnixel 0) v
 
 public export
-Show ThermoState where
-  show (MkThermoState u t s) = "ThermoState(U=" ++ show u ++ ", T=" ++ show t ++ ", S=" ++ show s ++ ")"
+thermoTemperature : Vexel -> BoxInt
+thermoTemperature (MkVexel (_ :: (MkUnixel 1, t) :: _)) = t
+thermoTemperature v = lookupUnixel (MkUnixel 1) v
+
+public export
+thermoEntropy : Vexel -> BoxInt
+thermoEntropy (MkVexel (_ :: _ :: (MkUnixel 2, s) :: _)) = s
+thermoEntropy v = lookupUnixel (MkUnixel 2) v
 
 ||| Computes exact discrete Helmholtz Free Energy: F = U - T * S
 public export
-computeFreeEnergy : (1 state : ThermoState) -> BoxInt
-computeFreeEnergy (MkThermoState u t s) = u - (t * s)
+computeFreeEnergy : Vexel -> BoxInt
+computeFreeEnergy v =
+  let u = thermoInternalEnergy v
+      t = thermoTemperature v
+      s = thermoEntropy v
+  in u - (t * s)
 
 --------------------------------------------------------------------------------
 -- 2. DISCRETE FREE ENERGY MINIMIZATION (& Delta F <= 0)
@@ -40,18 +52,15 @@ computeFreeEnergy (MkThermoState u t s) = u - (t * s)
 
 ||| Evaluates free energy change Delta F = F_after - F_before
 public export
-computeDeltaF : (1 before : ThermoState) -> (1 after : ThermoState) -> BoxInt
-computeDeltaF (MkThermoState u1 t1 s1) (MkThermoState u2 t2 s2) =
-  (u2 - (t2 * s2)) - (u1 - (t1 * s1))
+computeDeltaF : Vexel -> Vexel -> BoxInt
+computeDeltaF b a = computeFreeEnergy a - computeFreeEnergy b
 
 ||| Validates second law of thermodynamics: Delta F <= 0 (Free Energy Minimization)
 public export
-isFreeEnergyMinimizing : (1 before : ThermoState) -> (1 after : ThermoState) -> Bool
-isFreeEnergyMinimizing (MkThermoState u1 t1 s1) (MkThermoState u2 t2 s2) =
-  let dF = (u2 - (t2 * s2)) - (u1 - (t1 * s1))
+isFreeEnergyMinimizing : Vexel -> Vexel -> Bool
+isFreeEnergyMinimizing b a =
+  let dF = computeDeltaF b a
   in boxNegative dF || dF == intToBoxInt 0
-
-
 
 --------------------------------------------------------------------------------
 -- 3. IRREVERSIBLE COSMOLOGICAL STATE UPDATE
@@ -60,51 +69,60 @@ isFreeEnergyMinimizing (MkThermoState u1 t1 s1) (MkThermoState u2 t2 s2) =
 ||| Type-level proof witness certifying that an irreversible state transition
 ||| obeys the entropic arrow of time (Delta F <= 0).
 public export
-data EntropicArrowStep : (before : ThermoState) -> (after : ThermoState) -> Type where
-  IrreversibleUpdate : (1 before : ThermoState) -> (1 after : ThermoState) ->
+data EntropicArrowStep : (before : Vexel) -> (after : Vexel) -> Type where
+  IrreversibleUpdate : (before : Vexel) -> (after : Vexel) ->
                        (0 prf : isFreeEnergyMinimizing before after = True) ->
                        EntropicArrowStep before after
 
 ||| A multi-step entropic transition chain strictly obeying the second law of thermodynamics (Delta F <= 0)
 public export
-data ThermoCascade : ThermoState -> ThermoState -> Type where
+data ThermoCascade : Vexel -> Vexel -> Type where
   SingleStep : EntropicArrowStep before after -> ThermoCascade before after
   TransStep  : EntropicArrowStep before mid -> ThermoCascade mid after -> ThermoCascade before after
 
 ||| Executes a multi-step thermodynamic state transition cascade linearly,
 ||| returning the final state and total free energy drop Delta F.
 public export
-executeCascade : (1 start : ThermoState) -> ThermoCascade start end -> (ThermoState, BoxInt)
-executeCascade (MkThermoState u1 t1 s1) (SingleStep (IrreversibleUpdate _ (MkThermoState u2 t2 s2) prf)) =
-  (MkThermoState u2 t2 s2, (u2 - (t2 * s2)) - (u1 - (t1 * s1)))
-executeCascade (MkThermoState u1 t1 s1) (TransStep (IrreversibleUpdate _ (MkThermoState u2 t2 s2) prf) rest) =
-  let dF1 = (u2 - (t2 * s2)) - (u1 - (t1 * s1))
-      (finalSt, dF2) = executeCascade (MkThermoState u2 t2 s2) rest
+executeCascade : Vexel -> ThermoCascade start end -> (Vexel, BoxInt)
+executeCascade start (SingleStep (IrreversibleUpdate _ after prf)) =
+  (after, computeDeltaF start after)
+executeCascade start (TransStep (IrreversibleUpdate _ mid prf) rest) =
+  let dF1 = computeDeltaF start mid
+      (finalSt, dF2) = executeCascade mid rest
   in (finalSt, dF1 + dF2)
 
 ||| Eilenberg-Moore Monadic History Relinearization:
-||| Collapses a multi-step thermodynamic interaction cascade into a single ground-state ThermoState,
+||| Collapses a multi-step thermodynamic interaction cascade into a single ground-state Vexel,
 ||| resetting the history ledger to a parallel Applicative state while preserving final entropic bounds.
 public export
-relinearizeHistory : (1 start : ThermoState) -> ThermoCascade start end -> ThermoState
+relinearizeHistory : Vexel -> ThermoCascade start end -> Vexel
 relinearizeHistory start cascade =
   let (finalState, dF) = executeCascade start cascade
   in finalState
 
-
-
-
 ||| Enforces local second-law thermodynamics (Delta F <= 0) across cellular comonad neighborhoods
 public export
-localEntropicStep : GridContext ThermoState -> ThermoState
+localEntropicStep : GridContext Vexel -> Vexel
 localEntropicStep (Context left center right) =
-  let u = internalEnergy center
-      t = temperature center
-      s = entropyS center
-  in MkThermoState u t (s + intToBoxInt 1)
+  let u = thermoInternalEnergy center
+      t = thermoTemperature center
+      s = thermoEntropy center
+  in thermoVexel u t (s + intToBoxInt 1)
 
 --------------------------------------------------------------------------------
--- 4. COMPILE-TIME FREE ENERGY MINIMIZATION AUDIT PROOF
+-- 4. CHROMOCATEGORY METRIC TENSOR ENTROPIC BOUNDS
+--------------------------------------------------------------------------------
+
+||| Evaluates spatial entropic free energy dissipation bound over a ChromoCategory VexelSpace.
+public export
+thermoMetricBound : {d : Nat} -> {c : MetricColor} ->
+                    (0 sp : VexelSpace d c) ->
+                    (stateVec : Vexel) ->
+                    BoxInt
+thermoMetricBound sp stateVec = quadranceVexelSpace sp stateVec
+
+--------------------------------------------------------------------------------
+-- 5. COMPILE-TIME FREE ENERGY MINIMIZATION AUDIT PROOF
 --------------------------------------------------------------------------------
 
 ||| Static compiler proof witness verifying that isothermal entropy growth decreases free energy.
@@ -112,7 +130,48 @@ localEntropicStep (Context left center right) =
 ||| Final state:   U=100, T=10, S=5 => F2 = 100 - 50 = 50.
 ||| Delta F = 50 - 80 = -30 <= 0.
 public export
-0 verifyEntropicArrow : let s1 = MkThermoState (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 2)
-                            s2 = MkThermoState (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 5)
+0 verifyEntropicArrow : let s1 = thermoVexel (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 2)
+                            s2 = thermoVexel (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 5)
                         in isFreeEnergyMinimizing s1 s2 = True
 verifyEntropicArrow = Refl
+
+--------------------------------------------------------------------------------
+-- 6. PURE MULTISET THERMODYNAMIC STATE ENCODING & FREE ENERGY
+--------------------------------------------------------------------------------
+
+||| Multiset Thermodynamic Variable Tokens
+public export
+data ThermoStateToken = EnergyToken | TemperatureToken | EntropyToken
+
+public export
+Eq ThermoStateToken where
+  EnergyToken      == EnergyToken      = True
+  TemperatureToken == TemperatureToken = True
+  EntropyToken     == EntropyToken     = True
+  _                == _                = False
+
+||| Encodes thermodynamic parameters into a pure Multiset BoxInt ThermoStateToken.
+public export
+makeThermoMultiset : BoxInt -> BoxInt -> BoxInt -> Multiset BoxInt ThermoStateToken
+makeThermoMultiset u t s =
+  AddM EnergyToken u (AddM TemperatureToken t (AddM EntropyToken s ZeroM))
+
+||| Computes exact Helmholtz Free Energy F = U - T * S from a Multiset BoxInt ThermoStateToken.
+public export
+multisetComputeFreeEnergy : Multiset BoxInt ThermoStateToken -> BoxInt
+multisetComputeFreeEnergy m =
+  let u = multiplicity EnergyToken m
+      t = multiplicity TemperatureToken m
+      s = multiplicity EntropyToken m
+  in u - (t * s)
+
+||| Audits multiset free energy minimization invariance:
+public export
+auditMultisetThermoFreeEnergyProof : Bool
+auditMultisetThermoFreeEnergyProof =
+  let s1 = makeThermoMultiset (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 2)
+      s2 = makeThermoMultiset (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 5)
+      f1 = multisetComputeFreeEnergy s1
+      f2 = multisetComputeFreeEnergy s2
+  in unwrapBox f1 == 80 && unwrapBox f2 == 50 && unwrapBox f2 <= unwrapBox f1
+
