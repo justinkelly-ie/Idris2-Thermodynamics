@@ -7,6 +7,7 @@ import public Core.UnixelFraction
 
 import public Core.VexelMaxel
 import public Math.ChromoCategory
+import public Core.Category.Adjunction
 import Math.Thermodynamics.PreorderedMonoid
 import Math.Cellular.Comonad
 
@@ -202,5 +203,49 @@ record VerifiedLandauerErasureState (erasedBits : Nat) (emittedHeat : Nat) where
   erasedBitsCount : Nat
   emittedHeatUnits : Nat
   0 landauerPrf : LandauerBoundWitness erasedBits emittedHeat
+
+--------------------------------------------------------------------------------
+-- 8. THERMODYNAMIC SCALE MONAD & VARIATIONAL FREE ENERGY ADJUNCTION
+--------------------------------------------------------------------------------
+
+||| Coarse-grained macro thermodynamic state wrapping coarse-grained entropy and energy bounds.
+public export
+record ThermoMacroDomain where
+  constructor MkThermoMacro
+  macroEnergy  : BoxInt
+  macroTemp    : BoxInt
+  macroEntropy : BoxInt
+
+public export
+Eq ThermoMacroDomain where
+  (MkThermoMacro e1 t1 s1) == (MkThermoMacro e2 t2 s2) = e1 == e2 && t1 == t2 && s1 == s2
+
+||| MultisetScaleAdjunction (f_* ⊣ f^*) between micro Vexel state and macro ThermoMacroDomain.
+public export
+MultisetScaleAdjunction Vexel ThermoMacroDomain where
+  f_pushforward v = MkThermoMacro (thermoInternalEnergy v) (thermoTemperature v) (thermoEntropy v)
+  f_pullback (MkThermoMacro e t s) = thermoVexel e t s
+  verifyUnit (MkVexel [(MkUnixel 0, u), (MkUnixel 1, t), (MkUnixel 2, s)]) = Refl
+  verifyUnit _ = Refl
+  verifyCounit _ = Refl
+
+||| Computes exact Helmholtz Free Energy Variational Surprise F_surprise = S(f^* (f_* v)) - S(v)
+||| using Adjunction-induced ScaleMonad M(v) = f^* (f_* v).
+public export
+thermoVariationalFreeEnergySurprise : Vexel -> BoxInt
+thermoVariationalFreeEnergySurprise v =
+  scaleMonadVariationalSurprise {a=ThermoMacroDomain} computeFreeEnergy v
+
+||| Static proof witness verifying zero variational surprise under identity scale reconstruction.
+public export
+0 verifyZeroVariationalSurprise : thermoVariationalFreeEnergySurprise (thermoVexel (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 5)) = intToBoxInt 0
+verifyZeroVariationalSurprise = Refl
+
+||| Audit witness verifying zero variational surprise under scale reconstruction.
+public export
+auditZeroVariationalSurpriseProof : Bool
+auditZeroVariationalSurpriseProof =
+  let v = thermoVexel (intToBoxInt 100) (intToBoxInt 10) (intToBoxInt 5)
+  in thermoVariationalFreeEnergySurprise v == intToBoxInt 0
 
 
