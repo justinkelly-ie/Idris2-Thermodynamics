@@ -6,7 +6,8 @@ brief   = "Layer 8 Pre-ordered Monoids, Entropic Arrow & Free Energy Subsystem."
 depends = Idris2-Cellular, Idris2-Geometry, Idris2-Multiset-Core, Idris2-Multiset-Transform, base, linear
 sourcedir = "src"
 
-modules = Math.Thermodynamics.EntropicArrow,
+modules = Thermodynamics,
+          Math.Thermodynamics.EntropicArrow,
           Math.Thermodynamics.FluctuationStream,
           Math.Thermodynamics.PreorderedMonoid
 
