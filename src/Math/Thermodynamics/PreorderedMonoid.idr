@@ -1,17 +1,23 @@
 module Math.Thermodynamics.PreorderedMonoid
 
-import Core.Order.Preorder
+import public Core.Order.Preorder
 import Core.BoxInt
 import Core.UnixelFraction
 import Core.Goh
+import Data.Nat
 
 %default total
 
 --------------------------------------------------------------------------------
--- 1. BOXINT POSET ORDERING
+-- 1. BOXINT POSET ORDERING & PROOF WITNESSES
 --------------------------------------------------------------------------------
 
-||| Monotonic BoxInt ordering implementation: x <= y in integer state space
+||| Proof-based preorder relation for BoxInt integer state space: natLTE (boxToNat b1) (boxToNat b2) = True.
+public export
+0 BoxIntPreorderPrf : BoxInt -> BoxInt -> Type
+BoxIntPreorderPrf b1 b2 = natLTE (boxToNat b1) (boxToNat b2) = True
+
+||| Monotonic BoxInt ordering implementation: x <= y in integer state space.
 public export
 boxIntPreorder : BoxInt -> BoxInt -> Bool
 boxIntPreorder b1 b2 = natLTE (boxToNat b1) (boxToNat b2)
@@ -20,3 +26,8 @@ boxIntPreorder b1 b2 = natLTE (boxToNat b1) (boxToNat b2)
 public export
 0 verifyPreorderReflexivity : (v : Integer) -> boxIntPreorder (MkBoxInt v) (MkBoxInt v) = True
 verifyPreorderReflexivity v = natLTERefl (boxToNat (MkBoxInt v))
+
+||| Explicit Idris 2 proof witness of preorder reflexivity for BoxInt.
+public export
+0 boxIntReflPrf : (b : BoxInt) -> BoxIntPreorderPrf b b
+boxIntReflPrf b = natLTERefl (boxToNat b)
