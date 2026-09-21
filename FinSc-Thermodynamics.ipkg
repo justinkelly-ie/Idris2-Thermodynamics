@@ -1,9 +1,9 @@
-package Idris2-Thermodynamics
+package FinSc-Thermodynamics
 version = 0.3.1
 authors = "Justin Kelly"
 brief   = "Layer 8 Pre-ordered Monoids, Entropic Arrow & Free Energy Subsystem."
 
-depends = Idris2-Cellular, Idris2-Geometry, Idris2-Multiset-Core, Idris2-Multiset-Transform, base, linear
+depends = FinSc-Cellular, FinSc-Geometry, FinSc-Multiset-Core, FinSc-Multiset-Transform, base, linear
 sourcedir = "src"
 
 modules = Thermodynamics,

@@ -1,6 +1,6 @@
-# 🌡️ Idris2-Thermodynamics (Layer 8)
+# 🌡️ FinSc-Thermodynamics (Layer 8)
 
-`Idris2-Thermodynamics` forms **Layer 8** in the 10-layer constructive non-linear multiset science framework. It provides bounded pre-ordered monoids, discrete Helmholtz free energy calculations ($F = U - T \cdot S$), the entropic arrow of time ($\Delta F \le 0$), multi-step thermodynamic transition cascades, and Eilenberg-Moore monadic history relinearization.
+`FinSc-Thermodynamics` forms **Layer 8** in the 10-layer constructive non-linear multiset science framework. It provides bounded pre-ordered monoids, discrete Helmholtz free energy calculations ($F = U - T \cdot S$), the entropic arrow of time ($\Delta F \le 0$), multi-step thermodynamic transition cascades, and Eilenberg-Moore monadic history relinearization.
 
 ---
 
